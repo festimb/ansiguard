@@ -1,0 +1,18 @@
+# OS / Editor / IDE files
+.DS_Store
+*.tmp
+.vscode/
+.idea/
+
+# Ansible cache and metadata
+.ansible/
+*.retry
+
+# WireGuard keys and config files
+**/*private.key
+**/*public.key
+*.conf
+
+# Logs
+*.log
+logs/
