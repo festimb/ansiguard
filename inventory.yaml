@@ -1,0 +1,7 @@
+all:
+  hosts:
+    my_server:
+      ansible_host: <server_ip>
+      ansible_port: <port>
+      ansible_user: <username>
+      ansible_password: <password>
