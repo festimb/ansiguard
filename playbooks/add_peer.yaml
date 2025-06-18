@@ -1,0 +1,14 @@
+- name: 'Add WireGuard Peer / Client'
+  hosts: my_server
+  become: true
+  become_user: root
+  roles:
+    - role: peer
+      vars:
+        server_dir: /etc/wireguard
+        wireguard_interface: wg0
+        peer_name: "{{ peer_name | default('peer') }}"
+        peer_ip: "{{ peer_allowed_ips | default('10.0.0.2/32') }}"
+        peer_private_key_path: "{{ server_dir }}/peers/{{ peer_name }}_private.key"
+        peer_public_key_path: "{{ server_dir }}/peers/{{ peer_name }}_public.key"
+        peer_config_path: "{{ server_dir }}/peers/{{ peer_name }}.conf"
