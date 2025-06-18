@@ -1,0 +1,15 @@
+- name: 'Setup WireGuard VPN'
+  hosts: my_server
+  become: true
+  become_user: root
+  roles:
+    - role: server
+      vars:
+        wireguard_interface: wg0
+        desired_owner: root
+        desired_group: root
+        wireguard_dir: /etc/wireguard
+        private_key_path: "{{ wireguard_dir }}/private.key"
+        public_key_path: "{{ wireguard_dir }}/public.key"
+        config_file: "{{ wireguard_dir }}/{{ wireguard_interface }}.conf"
+        sysctl_dropin: /etc/sysctl.d/99-ip-forward.conf
