@@ -48,7 +48,7 @@ cd ansiguard
 # Replace your inventory with your host config (inventory.yaml)
 all:
   hosts:
-    vpn-server:
+    my_server:
       ansible_host: <your.server.ip>
       ansible_port: <server_ssh_port>
       ansible_user: <your_server_user>
@@ -56,15 +56,21 @@ all:
 
 
 # Run the Server playbook
-ansible-playbook -i inventory.yaml playbooks/setup_server.yaml -K
-#This will: install WireGuard -> create server keys -> configure interface -> start and enable the Wireguard service
+ansible-playbook -i inventory.yaml playbooks/setup_server.yaml -e "user_name=festim user_password=securepassword" -K
+# -> This requires you to specify the username and password in server that will be used to setup, can be same as inventory.
+#This will: install WireGuard -> create server keys -> configure interface -> start and enable the Wireguard service.
 
 
 # Generate a client config (repeat as many times as needed)
-ansible-playbook -i inventory.yaml playbooks/add_client.yaml -e "client_name=festim" -K
+ansible-playbook -i inventory.yaml playbooks/add_peer.yaml -e "client_name=festim peer_allowed_ips=10.0.0.2/32 server_ip=192.168.20.1" -K
+# -> This will require you to specify: the client name (can be anything), peer_allowed_ips (client's ip on server, must be unique), and IP of server
 #This will: create a peer keypair -> Add the peer to the server config -> Generate festim.conf
-```
 
+
+# If you wish to further optimise the networking and default configuration, you may edit these two files with your desired configs:
+- roles/peer/templates/peer.conf.j2
+- roles/server/templates/server.conf.j2
+```
 
 
 
