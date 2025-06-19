@@ -1,0 +1,46 @@
+- name: 'Ensure peers directory exists'
+  ansible.builtin.file:
+    path: "{{ server_dir }}/peers"
+    state: directory
+    mode: '0750'
+
+- name: 'Generate peer private key'
+  ansible.builtin.command: wg genkey
+  register: peer_private_key
+
+- name: 'Generate peer public key from private key'
+  ansible.builtin.shell: echo "{{ peer_private_key.stdout }}" | wg pubkey
+  register: peer_public_key
+  changed_when: false
+
+- name: 'Read server public key from file'
+  ansible.builtin.slurp:
+    src: "{{ server_dir }}/public.key"
+  register: server_public_key_b64
+
+- name: 'Decode server public key'
+  ansible.builtin.set_fact:
+    server_public_key: "{{ server_public_key_b64.content | b64decode | trim }}"
+
+- name: Generate peer config file
+  ansible.builtin.template:
+    src: peer.conf.j2
+    dest: "{{ peer_config_path }}"
+    mode: '0740'
+  vars:
+    client_private_key: "{{ peer_private_key.stdout }}"
+    client_address: "{{ peer_ip }}"
+    server_public_key: "{{ server_public_key }}"
+
+- name: Append peer to server configuration
+  blockinfile:
+    path: "{{ server_dir }}/{{ wireguard_interface }}.conf"
+    block: |
+      [Peer]
+      PublicKey = {{ peer_public_key.stdout }}
+      AllowedIPs = {{ peer_ip }}
+
+- name: Restart WireGuard service
+  systemd:
+    name: "wg-quick@{{ wireguard_interface }}"
+    state: restarted
