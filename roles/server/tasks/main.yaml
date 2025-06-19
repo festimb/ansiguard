@@ -1,0 +1,84 @@
+- name: 'Install required packages'
+  ansible.builtin.apt:
+    name:
+      - wireguard
+      - resolvconf
+    state: present
+    update_cache: true
+
+- name: 'Ensure WireGuard directory exists'
+  ansible.builtin.file:
+    path: "{{ wireguard_dir }}"
+    owner: "{{ desired_owner }}"
+    group: "{{ desired_group }}"
+    state: directory
+    mode: '0750'
+
+- name: 'Check if private key exists'
+  ansible.builtin.stat:
+    path: "{{ private_key_path }}"
+  register: privatekey_stat
+
+- name: 'Generate WireGuard private key'
+  ansible.builtin.command: wg genkey
+  register: wg_private_key
+  when: not privatekey_stat.stat.exists
+  changed_when: true
+
+- name: 'Save private key'
+  ansible.builtin.copy:
+    content: "{{ wg_private_key.stdout }}"
+    dest: "{{ private_key_path }}"
+    mode: '0640'
+  when: not privatekey_stat.stat.exists and wg_private_key.stdout is defined
+
+- name: 'Check if public key exists'
+  ansible.builtin.stat:
+    path: "{{ public_key_path }}"
+  register: publickey_stat
+
+- name: 'Generate public key from private key'
+  ansible.builtin.shell: "wg pubkey < {{ private_key_path }}"
+  register: wg_public_key
+  changed_when: false
+  when: not publickey_stat.stat.exists
+
+- name: 'Save public key'
+  ansible.builtin.copy:
+    content: "{{ wg_public_key.stdout }}"
+    dest: "{{ public_key_path }}"
+    mode: '0640'
+  when:
+    - wg_public_key is defined and "stdout" in wg_public_key
+
+- name: 'Deploy WireGuard configuration'
+  ansible.builtin.template:
+    src: server.conf.j2
+    dest: "{{ config_file }}"
+    mode: '0740'
+    owner: "{{ desired_owner }}"
+    group: "{{ desired_group }}"
+
+- name: 'Persist IP forwarding using systemd-compatible sysctl drop-in'
+  ansible.builtin.copy:
+    dest: "{{ sysctl_dropin }}"
+    content: "net.ipv4.ip_forward = 1\n"
+    owner: "{{ desired_owner }}"
+    group: "{{ desired_group }}"
+    mode: '0640'
+
+- name: 'Reload systemd-sysctl to apply IP forwarding'
+  ansible.builtin.systemd:
+    name: systemd-sysctl
+    state: restarted
+
+- name: 'Enable WireGuard service on boot'
+  ansible.builtin.systemd:
+    name: "wg-quick@{{ wireguard_interface }}"
+    enabled: true
+    daemon_reload: true
+
+- name: 'Start WireGuard service'
+  ansible.builtin.systemd:
+    name: "wg-quick@{{ wireguard_interface }}"
+    state: started
